@@ -1,0 +1,52 @@
+docker build -t blockchain_go .
+docker run -it -v /e/Bach/workspace/blockchain/blockchain_go:/app blockchain_go bash
+
+// Skip if no error occured by using go get
+apt-get purge git
+apt-get update
+apt-get install git
+
+go get github.com/boltdb/bolt/...
+go get golang.org/x/crypto/ripemd160
+
+go build -o blockchain_go
+
+CENTRAL NODE
+export NODE_ID=3000
+./blockchain_go createwallet
+	=> 17SAZrq75MyDQoDmHy5Rgijm15N9UtyaHU
+./blockchain_go createblockchain -address 17SAZrq75MyDQoDmHy5Rgijm15N9UtyaHU
+cp blockchain_3000.db blockchain_genesis.db
+
+Node 1 - WALLET
+docker ps
+docker exec -it 8881cb1cc7a1 bash
+export NODE_ID=3001
+./blockchain_go createwallet
+	=> 16dFkvsp4ejXPZQWBBZYoyzFmNXj4aMEDf
+	   14pwTJ4e4WkjsjR9XGUK3bMxM2kSBa2QGb
+
+CENTRAL NODE
+./blockchain_go send -from 17SAZrq75MyDQoDmHy5Rgijm15N9UtyaHU -to 16dFkvsp4ejXPZQWBBZYoyzFmNXj4aMEDf -amount 10 -mine
+./blockchain_go send -from 17SAZrq75MyDQoDmHy5Rgijm15N9UtyaHU -to 14pwTJ4e4WkjsjR9XGUK3bMxM2kSBa2QGb -amount 10 -mine
+./blockchain_go startnode
+
+Node 1
+cp blockchain_genesis.db blockchain_3001.db
+./blockchain_go startnode
+./blockchain_go getbalance -address 16dFkvsp4ejXPZQWBBZYoyzFmNXj4aMEDf
+./blockchain_go getbalance -address 14pwTJ4e4WkjsjR9XGUK3bMxM2kSBa2QGb
+
+Node 2
+docker exec -it 8881cb1cc7a1 bash
+export NODE_ID=3002
+./blockchain_go createwallet
+	=> 15w3oGcEdifKPHZG8yMojr2yG9tFZMFc65
+cp blockchain_genesis.db blockchain_3002.db
+./blockchain_go startnode -miner 15w3oGcEdifKPHZG8yMojr2yG9tFZMFc65
+
+Node 1
+./blockchain_go send -from 16dFkvsp4ejXPZQWBBZYoyzFmNXj4aMEDf -to 14pwTJ4e4WkjsjR9XGUK3bMxM2kSBa2QGb -amount 1
+./blockchain_go send -from 16dFkvsp4ejXPZQWBBZYoyzFmNXj4aMEDf -to 17SAZrq75MyDQoDmHy5Rgijm15N9UtyaHU -amount 1
+./blockchain_go startnode
+./blockchain_go getbalance -address 16dFkvsp4ejXPZQWBBZYoyzFmNXj4aMEDf
