@@ -23,9 +23,13 @@ func Base58Encode(input []byte) []byte {
 	}
 
 	// https://en.bitcoin.it/wiki/Base58Check_encoding#Version_bytes
-	if input[0] == 0x00 {
-		result = append(result, b58Alphabet[0])
-	}
+	for i := 0; i < len(input); i++ {
+    if input[i] == 0x00 {
+      result = append(result, b58Alphabet[0])
+    } else {
+      break
+    }
+  }
 
 	ReverseBytes(result)
 
@@ -44,9 +48,13 @@ func Base58Decode(input []byte) []byte {
 
 	decoded := result.Bytes()
 
-	if input[0] == b58Alphabet[0] {
-		decoded = append([]byte{0x00}, decoded...)
-	}
+  for i := 0; i < len(input); i++ {
+    if input[i] == b58Alphabet[0] {
+      decoded = append([]byte{0x00}, decoded...)
+    } else {
+      break
+    }
+  }
 
 	return decoded
 }

@@ -54,21 +54,30 @@ func TestNewMerkleTree(t *testing.T) {
 		[]byte("node1"),
 		[]byte("node2"),
 		[]byte("node3"),
+    []byte("node4"),
+    []byte("node5"),
 	}
 	// Level 1
 	n1 := NewMerkleNode(nil, nil, data[0])
 	n2 := NewMerkleNode(nil, nil, data[1])
 	n3 := NewMerkleNode(nil, nil, data[2])
-	n4 := NewMerkleNode(nil, nil, data[2])
+	n4 := NewMerkleNode(nil, nil, data[3])
+  n5 := NewMerkleNode(nil, nil, data[4])
+  n6 := NewMerkleNode(nil, nil, data[4])
 
 	// Level 2
-	n5 := NewMerkleNode(n1, n2, nil)
-	n6 := NewMerkleNode(n3, n4, nil)
+	n7 := NewMerkleNode(n1, n2, nil)
+	n8 := NewMerkleNode(n3, n4, nil)
+  n9 := NewMerkleNode(n5, n6, nil)
 
 	// Level 3
-	n7 := NewMerkleNode(n5, n6, nil)
+	n10 := NewMerkleNode(n7, n8, nil)
+  n11 := NewMerkleNode(n9, n9, nil)
 
-	rootHash := fmt.Sprintf("%x", n7.Data)
+  // Level 4
+	n12 := NewMerkleNode(n10, n11, nil)
+
+	rootHash := fmt.Sprintf("%x", n12.Data)
 	mTree := NewMerkleTree(data)
 
 	assert.Equal(t, rootHash, fmt.Sprintf("%x", mTree.RootNode.Data), "Merkle tree root hash is correct")
