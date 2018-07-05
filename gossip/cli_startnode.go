@@ -6,5 +6,5 @@ import (
 
 func (cli *CLI) startNode(nodeID string) {
 	fmt.Printf("Starting node %s\n", nodeID)
-	// StartServer(nodeID, minerAddress)
+	StartServer(nodeID)
 }

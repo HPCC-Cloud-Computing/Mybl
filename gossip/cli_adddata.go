@@ -1,5 +1,11 @@
 package main
 
-func (cli *CLI) addData(data, nodeID string) {
+import (
+  "fmt"
+)
 
+func (cli *CLI) addData(data, nodeID string) {
+  dataSet := newDataSet(nodeID)
+  dataSet.addData(data, nodeID)
+  fmt.Println("Done")
 }

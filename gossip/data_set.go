@@ -58,7 +58,20 @@ func createDataSet(data, nodeID string) *DataSet {
 	return &dataSet
 }
 
-func (dataSet *DataSet) printDataSet(nodeID string) {
+func (dataSet *DataSet) getHeight() int {
+  var height int
+  dataSet.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+    h := b.Get([]byte("h"))
+    height, _ = strconv.Atoi(string(h))
+
+		return nil
+	})
+
+  return height
+}
+
+func (dataSet *DataSet) printDataSet() {
   dataSet.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
     h := b.Get([]byte("h"))
@@ -68,6 +81,19 @@ func (dataSet *DataSet) printDataSet(nodeID string) {
       data := b.Get([]byte(fmt.Sprintf("%v", i)))
       fmt.Println(string(data))
     }
+
+		return nil
+	})
+}
+
+func (dataSet *DataSet) addData(data, nodeID string) {
+  dataSet.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+    h := b.Get([]byte("h"))
+    height, _ := strconv.Atoi(string(h))
+
+    b.Put([]byte(fmt.Sprintf("%v", height)), []byte(data))
+    b.Put([]byte("h"), []byte(fmt.Sprintf("%v", height + 1)))
 
 		return nil
 	})
@@ -109,9 +135,4 @@ func dbExists(dbFile string) bool {
 	}
 
 	return true
-}
-
-func main() {
-  ds := newDataSet("3001")
-  ds.printDataSet("3001")
 }
