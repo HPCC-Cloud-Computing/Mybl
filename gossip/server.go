@@ -3,7 +3,6 @@ package main
 import (
   "bytes"
 	"encoding/gob"
-	// "encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +10,8 @@ import (
 	"net"
   "os"
   "bufio"
+  "strconv"
+  "github.com/boltdb/bolt"
 )
 
 var nodeAddress string
@@ -71,8 +72,12 @@ func addToNeighborList(addr string) {
 
   nodeList := getNeighbors()
 
+  if len(nodeList) >= 2 {
+    return
+  }
+
   for _, node := range nodeList {
-    if node == addr {
+    if node == addr || addr == nodeAddress {
       return
     }
   }
@@ -108,8 +113,14 @@ func handleConnection(conn net.Conn, ds *DataSet) {
 	switch command {
   case "getaddr":
     handleGetaddr(request, ds)
+  case "addr":
+    handleAddr(request, ds)
   case "version":
     handleVersion(request, ds)
+  case "getdata":
+    handleGetdata(request, ds)
+  case "data":
+    handleData(request, ds)
 	default:
 		fmt.Println("Unknown command!")
 	}
@@ -177,7 +188,7 @@ func sendGetaddr(address string) {
   payload := gobEncode(data)
   request := append(commandToBytes("getaddr"), payload...)
 
-  sendData(address, request)
+  sendTo(address, request)
 }
 
 func handleGetaddr(request []byte, ds *DataSet) {
@@ -194,7 +205,40 @@ func handleGetaddr(request []byte, ds *DataSet) {
   foreignerAddr := payload.AddrFrom
   addToNeighborList(foreignerAddr)
 
-  sendVersion(foreignerAddr, ds)
+  sendAddr(foreignerAddr)
+}
+
+func sendAddr(address string) {
+  neighbors := getNeighbors()
+  data := addr{neighbors}
+  payload := gobEncode(data)
+  request := append(commandToBytes("addr"), payload...)
+
+  sendTo(address, request)
+}
+
+func handleAddr(request []byte, ds *DataSet) {
+  var buff bytes.Buffer
+  var payload addr
+
+  buff.Write(request[commandLength:])
+  dec := gob.NewDecoder(&buff)
+  err := dec.Decode(&payload)
+  if err != nil {
+    log.Panic(err)
+  }
+
+  addresses := payload.AddrList
+
+  for _, address := range addresses {
+    addToNeighborList(address)
+  }
+
+  neighbors := getNeighbors()
+
+  for _, neighbor := range neighbors {
+    sendVersion(neighbor, ds)
+  }
 }
 
 func sendVersion(addr string, ds *DataSet) {
@@ -203,7 +247,7 @@ func sendVersion(addr string, ds *DataSet) {
   payload := gobEncode(data)
   request := append(commandToBytes("version"), payload...)
 
-  sendData(addr, request)
+  sendTo(addr, request)
 }
 
 func handleVersion(request []byte, ds *DataSet) {
@@ -217,11 +261,91 @@ func handleVersion(request []byte, ds *DataSet) {
 		log.Panic(err)
 	}
 
-  fmt.Println(payload.Height)
-  fmt.Println(payload.AddrFrom)
+  foreignerHeight := payload.Height
+  foreignerAddr := payload.AddrFrom
+  localHeight := ds.getHeight()
+
+  if localHeight > foreignerHeight {
+    sendVersion(foreignerAddr, ds)
+  } else if localHeight < foreignerHeight {
+    sendGetdata(foreignerAddr)
+  }
 }
 
-func sendData(addr string, data []byte) {
+func sendGetdata(addr string) {
+  data := getdata{nodeAddress}
+  payload := gobEncode(data)
+  request := append(commandToBytes("getdata"), payload...)
+
+  sendTo(addr, request)
+}
+
+func handleGetdata(request []byte, ds *DataSet) {
+  var buff bytes.Buffer
+  var payload getdata
+
+  buff.Write(request[commandLength:])
+  dec := gob.NewDecoder(&buff)
+  err := dec.Decode(&payload)
+  if err != nil {
+    log.Panic(err)
+  }
+
+  foreignerAddr := payload.AddrFrom
+
+  sendData(foreignerAddr, ds)
+}
+
+func sendData(addr string, ds *DataSet) {
+  var d []string
+
+  ds.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+    h := b.Get([]byte("h"))
+    height, _ := strconv.Atoi(string(h))
+
+    for i := 0; i < height; i++ {
+      _d := b.Get([]byte(fmt.Sprintf("%v", i)))
+      d = append(d, string(_d))
+    }
+
+		return nil
+	})
+
+  dataToSend := data{d}
+  payload := gobEncode(dataToSend)
+  request := append(commandToBytes("data"), payload...)
+
+  sendTo(addr, request)
+}
+
+func handleData(request []byte, ds *DataSet) {
+  var buff bytes.Buffer
+  var payload data
+
+  buff.Write(request[commandLength:])
+  dec := gob.NewDecoder(&buff)
+  err := dec.Decode(&payload)
+  if err != nil {
+    log.Panic(err)
+  }
+
+  newData := payload.Data
+
+  ds.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+
+    for index, newDatum := range newData {
+      b.Put([]byte(fmt.Sprintf("%v", index)), []byte(newDatum))
+    }
+
+    b.Put([]byte("h"), []byte(fmt.Sprintf("%v", len(newData))))
+
+		return nil
+	})
+}
+
+func sendTo(addr string, data []byte) {
 	conn, err := net.Dial(protocol, addr)
 	if err != nil {
 		fmt.Printf("%s is not available\n", addr)
