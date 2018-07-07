@@ -13,9 +13,14 @@ type CLI struct{}
 
 func (cli *CLI) printUsage() {
 	fmt.Println("Usage:")
-	fmt.Println("  createdata - Create initial data set")
-  fmt.Println("  adddata - Add data to the data set")
+	fmt.Println("  createdata - Create initial data set, require -data")
+  fmt.Println("  adddata - Add data to the data set, require -data")
+  fmt.Println("  printdata - Print data set.")
 	fmt.Println("  startnode - Start a node with ID specified in NODE_ID env. var.")
+  fmt.Println("Example:")
+  fmt.Println("  ./gossip createdata -data 1")
+  fmt.Println("  ./gossip adddata -data asd")
+  fmt.Println("  ./gossip printdata")
 }
 
 func (cli *CLI) validateArgs() {

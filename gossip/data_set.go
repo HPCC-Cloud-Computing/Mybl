@@ -86,7 +86,24 @@ func (dataSet *DataSet) printDataSet() {
 	})
 }
 
-func (dataSet *DataSet) addData(data, nodeID string) {
+func (ds *DataSet) getData() []string {
+  var data []string
+  ds.db.View(func(tx *bolt.Tx) error {
+    b := tx.Bucket([]byte(bucket))
+    h := b.Get([]byte("h"))
+    height, _ := strconv.Atoi(string(h))
+
+    for i := 0; i < height; i++ {
+      datum := b.Get([]byte(fmt.Sprintf("%v", i)))
+      data = append(data, string(datum))
+    }
+
+    return nil
+  })
+  return data
+}
+
+func (dataSet *DataSet) addData(data string) {
   dataSet.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
     h := b.Get([]byte("h"))
@@ -97,6 +114,20 @@ func (dataSet *DataSet) addData(data, nodeID string) {
 
 		return nil
 	})
+}
+
+func (ds *DataSet) updateData(newData []string) {
+  ds.db.Update(func(tx *bolt.Tx) error {
+    b := tx.Bucket([]byte(bucket))
+
+    for index, datum := range newData {
+      b.Put([]byte(fmt.Sprintf("%v", index)), []byte(datum))
+    }
+
+    b.Put([]byte("h"), []byte(fmt.Sprintf("%v", len(newData))))
+
+    return nil
+  })
 }
 
 // NewBlockchain creates a new Blockchain with genesis Block
